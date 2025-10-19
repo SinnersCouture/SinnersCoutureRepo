@@ -1,0 +1,67 @@
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQLDB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQLDB_DATABASE}
+      - MYSQL_USER=${MYSQLDB_USER}
+      - MYSQL_PASSWORD=${MYSQLDB_PASSWORD}
+    ports:
+      - "${MYSQLDB_LOCAL_PORT}:${MYSQLDB_DOCKER_PORT}"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - DB_HOST=db
+      - DB_USER=${MYSQLDB_USER}
+      - DB_PASSWORD=${MYSQLDB_PASSWORD}
+      - DB_NAME=${MYSQLDB_DATABASE}
+      - DB_PORT=${MYSQLDB_DOCKER_PORT}
+      - NODE_ENV=development
+      - PORT=${NODE_DOCKER_PORT}
+      - CORS_ORIGIN=${CLIENT_ORIGIN}
+    ports:
+      - "${NODE_LOCAL_PORT}:${NODE_DOCKER_PORT}"
+    networks:
+      - backend
+      - frontend
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_BASE_URL=${CLIENT_API_BASE_URL}
+    depends_on:
+      - api
+    ports:
+      - "${REACT_LOCAL_PORT}:${REACT_DOCKER_PORT}"
+    stdin_open: true
+    tty: true
+    networks:
+      - frontend
+
+volumes:
+  db_data:
+
+networks:
+  backend:
+  frontend:
