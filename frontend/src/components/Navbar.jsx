@@ -18,6 +18,8 @@ const Navbar = () => {
       </div>
       <nav className="navbar__links">
         <NavLink to="/collections">Colecciones</NavLink>
+        <NavLink to="/blog">Blog</NavLink>
+        <NavLink to="/polls">Encuestas</NavLink>
         {user && <NavLink to="/cart">Carrito</NavLink>}
         {user && <NavLink to="/orders">Pedidos</NavLink>}
       </nav>

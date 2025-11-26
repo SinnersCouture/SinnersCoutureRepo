@@ -10,9 +10,9 @@ INSERT INTO tallas (nombre) VALUES
   ('XL');
 
 -- Colecciones
-INSERT INTO colecciones (nombre, esta_activa) VALUES
-  ('FW25', TRUE),
-  ('SS26', TRUE);
+INSERT INTO colecciones (nombre, fecha_lanzamiento, esta_activa) VALUES
+  ('FW25', '2024-10-01 00:00:00', TRUE),
+  ('SS26', '2025-03-15 00:00:00', TRUE);
 
 -- Cache talla IDs
 SET @t_xs := (SELECT talla_id FROM tallas WHERE nombre = 'XS' LIMIT 1);
@@ -67,8 +67,11 @@ INSERT INTO inventario (producto_id, talla_id, cantidad_stock) VALUES
   (@p_pant_cargo, @t_l, 9);
 
 -- ============================================
--- Usuarios (nota: hashes de ejemplo, no usables para login)
--- Cree sus propios usuarios vía /auth/register para pruebas reales
+-- Usuarios
+-- NOTA: Los hashes de contraseña aquí son placeholders y NO funcionan para login.
+-- Los usuarios de seed tienen hashes dummy que no coinciden con ninguna contraseña real.
+-- Para pruebas reales, crea usuarios nuevos usando el endpoint POST /auth/register
+-- o actualiza manualmente estos usuarios con hashes bcrypt válidos.
 INSERT INTO usuarios (nombre, email, hash_contrasena, es_admin) VALUES
   ('Admin', 'admin@example.com', REPEAT('x', 60), TRUE),
   ('Carlos', 'carlos@example.com', REPEAT('y', 60), FALSE),
@@ -114,33 +117,84 @@ INSERT INTO pedido_items (pedido_id, inventario_id, cantidad, precio_compra) VAL
 -- ============================================
 -- Publicaciones y comentarios
 INSERT INTO publicaciones (autor_id, titulo, contenido) VALUES
-  (@u_admin,  'Bienvenida a Sinners Couture', 'Anunciamos la nueva colección FW25.'),
-  (@u_carlos, 'Making of FW25',              'Detrás de cámaras y procesos.');
+  (@u_admin,  'Bienvenida a Sinners Couture', 'Nos complace anunciar el lanzamiento de nuestra nueva colección FW25. Esta temporada trae diseños únicos que combinan estilo urbano con elementos de alta costura. Explora nuestras nuevas prendas y encuentra tu estilo perfecto.'),
+  (@u_carlos, 'Making of FW25',              'Te invitamos a conocer el proceso creativo detrás de nuestra colección FW25. Desde el diseño inicial hasta la producción final, cada pieza ha sido cuidadosamente elaborada con atención al detalle y compromiso con la calidad.'),
+  (@u_admin,  'Nueva colección SS26 disponible', 'La colección primavera-verano 2026 ya está disponible. Con colores frescos y diseños ligeros, perfectos para la temporada. No te pierdas nuestras ofertas de lanzamiento.'),
+  (@u_lucia,  'Mi experiencia con Sinners Couture', 'Comparto mi experiencia como cliente de Sinners Couture. La calidad de las prendas es excepcional y el servicio al cliente es impecable. ¡Recomendado totalmente!');
 
 SET @pub_bienvenida := (SELECT publicacion_id FROM publicaciones WHERE titulo='Bienvenida a Sinners Couture' LIMIT 1);
 SET @pub_makingof   := (SELECT publicacion_id FROM publicaciones WHERE titulo='Making of FW25' LIMIT 1);
+SET @pub_ss26       := (SELECT publicacion_id FROM publicaciones WHERE titulo='Nueva colección SS26 disponible' LIMIT 1);
+SET @pub_experiencia := (SELECT publicacion_id FROM publicaciones WHERE titulo='Mi experiencia con Sinners Couture' LIMIT 1);
 
 INSERT INTO comentarios (publicacion_id, usuario_id, contenido) VALUES
-  (@pub_bienvenida, @u_lucia,  'Me encanta la nueva línea!'),
-  (@pub_makingof,   @u_admin,  'Gran trabajo del equipo.');
+  (@pub_bienvenida, @u_lucia,  'Me encanta la nueva línea! Ya tengo varios productos en mi carrito.'),
+  (@pub_bienvenida, @u_carlos, 'Excelente colección, especialmente la Sudadera Oversize.'),
+  (@pub_makingof,   @u_admin,  'Gran trabajo del equipo. Es importante mostrar el proceso creativo.'),
+  (@pub_makingof,   @u_lucia,  'Interesante ver cómo se crean las prendas. Aprecio la transparencia.'),
+  (@pub_ss26,       @u_carlos, 'Los colores de la nueva colección son perfectos para primavera.'),
+  (@pub_experiencia, @u_admin, 'Gracias por compartir tu experiencia. Nos alegra saber que estás satisfecha.');
 
 -- ============================================
 -- Encuestas, opciones y votos
+
+-- Encuesta activa: Color favorito para camisetas
 INSERT INTO encuestas (pregunta, creada_por_id, fecha_fin, esta_activa) VALUES
-  ('¿Color favorito para camisetas?', @u_admin,  DATE_ADD(NOW(), INTERVAL 30 DAY), TRUE);
+  ('¿Color favorito para camisetas?', @u_admin, DATE_ADD(NOW(), INTERVAL 30 DAY), TRUE);
 
 SET @encuesta_colores := LAST_INSERT_ID();
 
 INSERT INTO opciones_encuesta (encuesta_id, texto_opcion) VALUES
   (@encuesta_colores, 'Negro'),
   (@encuesta_colores, 'Blanco'),
-  (@encuesta_colores, 'Rojo');
+  (@encuesta_colores, 'Rojo'),
+  (@encuesta_colores, 'Gris');
 
 SET @op_negro := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_colores AND texto_opcion='Negro' LIMIT 1);
 SET @op_blanco := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_colores AND texto_opcion='Blanco' LIMIT 1);
+SET @op_rojo := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_colores AND texto_opcion='Rojo' LIMIT 1);
 
 INSERT INTO votos (usuario_id, encuesta_id, opcion_id) VALUES
   (@u_carlos, @encuesta_colores, @op_negro),
   (@u_lucia,  @encuesta_colores, @op_blanco);
+
+-- Encuesta activa: Preferencia de talla
+INSERT INTO encuestas (pregunta, creada_por_id, fecha_fin, esta_activa) VALUES
+  ('¿Qué talla prefieres para prendas oversize?', @u_admin, DATE_ADD(NOW(), INTERVAL 45 DAY), TRUE);
+
+SET @encuesta_tallas := LAST_INSERT_ID();
+
+INSERT INTO opciones_encuesta (encuesta_id, texto_opcion) VALUES
+  (@encuesta_tallas, 'Talla normal'),
+  (@encuesta_tallas, 'Una talla más grande'),
+  (@encuesta_tallas, 'Dos tallas más grandes');
+
+SET @op_talla_normal := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_tallas AND texto_opcion='Talla normal' LIMIT 1);
+SET @op_talla_uno := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_tallas AND texto_opcion='Una talla más grande' LIMIT 1);
+
+INSERT INTO votos (usuario_id, encuesta_id, opcion_id) VALUES
+  (@u_carlos, @encuesta_tallas, @op_talla_uno),
+  (@u_lucia,  @encuesta_tallas, @op_talla_normal);
+
+-- Encuesta cerrada (para mostrar resultados históricos)
+INSERT INTO encuestas (pregunta, creada_por_id, fecha_fin, esta_activa) VALUES
+  ('¿Qué tipo de producto te interesa más?', @u_admin, DATE_SUB(NOW(), INTERVAL 7 DAY), FALSE);
+
+SET @encuesta_cerrada := LAST_INSERT_ID();
+
+INSERT INTO opciones_encuesta (encuesta_id, texto_opcion) VALUES
+  (@encuesta_cerrada, 'Camisetas'),
+  (@encuesta_cerrada, 'Sudaderas'),
+  (@encuesta_cerrada, 'Pantalones'),
+  (@encuesta_cerrada, 'Accesorios');
+
+SET @op_camisetas := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_cerrada AND texto_opcion='Camisetas' LIMIT 1);
+SET @op_sudaderas := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_cerrada AND texto_opcion='Sudaderas' LIMIT 1);
+SET @op_pantalones := (SELECT opcion_id FROM opciones_encuesta WHERE encuesta_id=@encuesta_cerrada AND texto_opcion='Pantalones' LIMIT 1);
+
+INSERT INTO votos (usuario_id, encuesta_id, opcion_id) VALUES
+  (@u_carlos, @encuesta_cerrada, @op_camisetas),
+  (@u_lucia,  @encuesta_cerrada, @op_sudaderas),
+  (@u_admin,  @encuesta_cerrada, @op_pantalones);
 
 
