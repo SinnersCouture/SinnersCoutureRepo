@@ -2,6 +2,7 @@ services:
   db:
     image: mysql:8.0
     restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQLDB_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQLDB_DATABASE}

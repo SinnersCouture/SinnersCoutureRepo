@@ -7,6 +7,7 @@ const pool = mysql.createPool({
   password: config.db.password,
   database: config.db.database,
   port: config.db.port,
+  charset: "utf8mb4",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

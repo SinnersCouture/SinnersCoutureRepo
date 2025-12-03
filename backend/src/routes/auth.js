@@ -1,5 +1,5 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const pool = require("../db/pool");
@@ -31,28 +31,114 @@ const issueToken = (user) =>
 router.post(
   "/register",
   asyncHandler(async (req, res) => {
+    console.log("[REGISTER] Request received", { 
+      bodyKeys: Object.keys(req.body || {}),
+      hasNombre: !!req.body?.nombre,
+      hasEmail: !!req.body?.email,
+      hasPassword: !!req.body?.password 
+    });
+
     const { nombre, email, password } = req.body;
 
     if (!nombre || !email || !password) {
+      console.log("[REGISTER] Validation failed - missing required fields");
       throw createHttpError(400, "nombre, email, and password are required");
     }
 
-    const [existingUsers] = await pool.query(
-      "SELECT usuario_id FROM usuarios WHERE email = ?",
-      [email]
-    );
+    if (typeof nombre !== "string" || typeof email !== "string" || typeof password !== "string") {
+      console.log("[REGISTER] Validation failed - invalid field types");
+      throw createHttpError(400, "nombre, email, and password must be strings");
+    }
+
+    if (password.length > 128) {
+      console.log("[REGISTER] Validation failed - password too long");
+      throw createHttpError(400, "Password is too long");
+    }
+
+    if (email.length > 255) {
+      console.log("[REGISTER] Validation failed - email too long");
+      throw createHttpError(400, "Email is too long");
+    }
+
+    if (password.length === 0) {
+      console.log("[REGISTER] Validation failed - password is empty");
+      throw createHttpError(400, "Password cannot be empty");
+    }
+
+    if (password.includes("\0")) {
+      console.log("[REGISTER] Validation failed - password contains null bytes");
+      throw createHttpError(400, "Password contains invalid characters");
+    }
+
+    try {
+      Buffer.from(password, "utf8");
+    } catch (encodingError) {
+      console.log("[REGISTER] Validation failed - password encoding error:", encodingError);
+      throw createHttpError(400, "Password contains invalid characters");
+    }
+
+    console.log("[REGISTER] Checking for existing user with email:", email);
+    let existingUsers;
+    try {
+      [existingUsers] = await pool.query(
+        "SELECT usuario_id FROM usuarios WHERE email = ?",
+        [email]
+      );
+      console.log("[REGISTER] Existing users query completed", { count: existingUsers.length });
+    } catch (dbError) {
+      console.error("[REGISTER] Database error checking existing users:", dbError);
+      throw dbError;
+    }
 
     if (existingUsers.length > 0) {
+      console.log("[REGISTER] Email already registered:", email);
       throw createHttpError(409, "Email already registered");
     }
 
-    const hash = await bcrypt.hash(password, 12);
+    console.log("[REGISTER] Hashing password", { 
+      passwordLength: password.length,
+      passwordType: typeof password 
+    });
+    let hash;
+    try {
+      hash = await bcrypt.hash(password, 12);
+      if (!hash || typeof hash !== "string") {
+        console.error("[REGISTER] Invalid hash result:", { hash, hashType: typeof hash });
+        throw createHttpError(500, "Failed to hash password - invalid result");
+      }
+      console.log("[REGISTER] Password hashed successfully", { hashLength: hash.length });
+    } catch (bcryptError) {
+      console.error("[REGISTER] Bcrypt error:", bcryptError);
+      console.error("[REGISTER] Bcrypt error details:", {
+        message: bcryptError?.message,
+        stack: bcryptError?.stack,
+        name: bcryptError?.name
+      });
+      throw createHttpError(500, "Failed to hash password");
+    }
 
-    const [result] = await pool.query(
-      "INSERT INTO usuarios (nombre, email, hash_contrasena) VALUES (?, ?, ?)",
-      [nombre, email, hash]
-    );
+    console.log("[REGISTER] Inserting new user into database");
+    let result;
+    try {
+      [result] = await pool.query(
+        "INSERT INTO usuarios (nombre, email, hash_contrasena) VALUES (?, ?, ?)",
+        [nombre, email, hash]
+      );
+      console.log("[REGISTER] Insert completed", { 
+        insertId: result?.insertId,
+        affectedRows: result?.affectedRows 
+      });
+    } catch (insertError) {
+      console.error("[REGISTER] Database insert error:", insertError);
+      throw insertError;
+    }
 
+    if (!result || typeof result.insertId === "undefined" || result.insertId === null) {
+      console.error("[REGISTER] Invalid insert result:", result);
+      throw createHttpError(500, "Failed to create user - invalid insert result");
+    }
+
+    console.log("[REGISTER] Creating user object");
     const user = normalizeUser({
       usuario_id: result.insertId,
       nombre,
@@ -60,8 +146,17 @@ router.post(
       es_admin: false,
     });
 
-    const token = issueToken(user);
+    console.log("[REGISTER] Issuing token");
+    let token;
+    try {
+      token = issueToken(user);
+      console.log("[REGISTER] Token issued successfully");
+    } catch (tokenError) {
+      console.error("[REGISTER] Token generation error:", tokenError);
+      throw createHttpError(500, "Failed to generate token");
+    }
 
+    console.log("[REGISTER] Registration successful for user:", user.id);
     res.status(201).json({ token, user });
   })
 );

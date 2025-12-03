@@ -53,7 +53,7 @@ const fetchOrderWithItems = async (orderId, userId) => {
   const [items] = await pool.query(
     `SELECT
         item_pedido_id AS id,
-        inventario_id AS inventarioId,
+        pedido_items.inventario_id AS inventarioId,
         cantidad,
         precio_compra AS precioCompra,
         productos.producto_id AS productoId,

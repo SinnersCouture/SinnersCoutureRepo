@@ -1,3 +1,8 @@
+-- Configurar charset UTF-8 para la sesión
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+SET character_set_connection = utf8mb4;
+
 -- Tabla: usuarios
 CREATE TABLE usuarios (
     usuario_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -5,7 +10,7 @@ CREATE TABLE usuarios (
     email VARCHAR(100) UNIQUE NOT NULL,
     hash_contrasena VARCHAR(255) NOT NULL,
     es_admin BOOLEAN DEFAULT FALSE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: colecciones
 CREATE TABLE colecciones (
@@ -14,7 +19,7 @@ CREATE TABLE colecciones (
     fecha_lanzamiento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     hash_contrasena_acceso VARCHAR(255),
     esta_activa BOOLEAN DEFAULT TRUE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: productos
 CREATE TABLE productos (
@@ -24,13 +29,13 @@ CREATE TABLE productos (
     precio DECIMAL(10, 2) NOT NULL,
     FOREIGN KEY (coleccion_id) REFERENCES colecciones(coleccion_id)
         ON DELETE CASCADE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: tallas
 CREATE TABLE tallas (
     talla_id INT PRIMARY KEY AUTO_INCREMENT,
     nombre VARCHAR(20) NOT NULL
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: inventario (producto + talla + stock)
 CREATE TABLE inventario (
@@ -99,7 +104,7 @@ CREATE TABLE publicaciones (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (autor_id) REFERENCES usuarios(usuario_id)
         ON DELETE CASCADE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: comentarios
 CREATE TABLE comentarios (
@@ -112,7 +117,7 @@ CREATE TABLE comentarios (
         ON DELETE CASCADE,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
         ON DELETE CASCADE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: encuestas
 CREATE TABLE encuestas (
@@ -123,7 +128,7 @@ CREATE TABLE encuestas (
     esta_activa BOOLEAN DEFAULT TRUE,
     FOREIGN KEY (creada_por_id) REFERENCES usuarios(usuario_id)
         ON DELETE CASCADE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: opciones_encuesta
 CREATE TABLE opciones_encuesta (
@@ -132,7 +137,7 @@ CREATE TABLE opciones_encuesta (
     texto_opcion VARCHAR(255) NOT NULL,
     FOREIGN KEY (encuesta_id) REFERENCES encuestas(encuesta_id)
         ON DELETE CASCADE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tabla: votos
 CREATE TABLE votos (

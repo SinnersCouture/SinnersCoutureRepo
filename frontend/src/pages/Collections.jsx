@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
+import { useAuth } from "../hooks/useAuth.js";
 import {
   fetchCollections,
   fetchInventoryByProduct,
   fetchProductsByCollection,
 } from "../services/catalog.js";
+import { updateCartItem } from "../services/cart.js";
 
 const formatPrice = (value) =>
   new Intl.NumberFormat("es-ES", {
@@ -16,6 +19,7 @@ const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString("es-ES") : "Sin fecha";
 
 const Collections = () => {
+  const { token, user } = useAuth();
   const [collections, setCollections] = useState([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState(null);
   const [products, setProducts] = useState([]);
@@ -26,6 +30,9 @@ const Collections = () => {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [error, setError] = useState(null);
+  const [quantities, setQuantities] = useState({});
+  const [addingToCart, setAddingToCart] = useState({});
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -142,6 +149,62 @@ const Collections = () => {
     [products, selectedProductId]
   );
 
+  const handleQuantityInput = (inventarioId, value) => {
+    const amount = Number(value);
+    if (Number.isNaN(amount)) {
+      return;
+    }
+    setQuantities((prev) => ({ ...prev, [inventarioId]: amount }));
+  };
+
+  const handleAddToCart = async (item) => {
+    if (!token) {
+      setError("Debes iniciar sesión para añadir items al carrito");
+      return;
+    }
+
+    const cantidad = quantities[item.id] ?? 1;
+
+    if (!Number.isInteger(cantidad) || cantidad <= 0) {
+      setError("La cantidad debe ser un número entero positivo");
+      return;
+    }
+
+    if (cantidad > item.cantidadStock) {
+      setError("No hay stock suficiente para esa cantidad");
+      return;
+    }
+
+    setAddingToCart((prev) => ({ ...prev, [item.id]: true }));
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      await updateCartItem({
+        token,
+        inventarioId: item.id,
+        cantidad,
+      });
+      setSuccessMessage(`Añadido al carrito: ${cantidad} x ${item.tallaNombre}`);
+      setQuantities((prev) => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAddingToCart((prev) => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="page">
       <h1>Colecciones</h1>
@@ -216,14 +279,47 @@ const Collections = () => {
           ) : inventory.length === 0 ? (
             <p>Sin stock registrado para este producto.</p>
           ) : (
-            <ul className="inventory-list">
-              {inventory.map((item) => (
-                <li key={item.id}>
-                  <span>{item.tallaNombre}</span>
-                  <span>{item.cantidadStock} uds</span>
-                </li>
-              ))}
-            </ul>
+            <>
+              {successMessage && <p className="form__success">{successMessage}</p>}
+              <ul className="inventory-list">
+                {inventory.map((item) => (
+                  <li key={item.id}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                      <span>{item.tallaNombre}</span>
+                      <span>{item.cantidadStock} uds</span>
+                      {user && item.cantidadStock > 0 && (
+                        <>
+                          <label className="form__field" style={{ margin: 0, minWidth: "120px" }}>
+                            <span style={{ fontSize: "0.875rem" }}>Cantidad</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={item.cantidadStock}
+                              value={quantities[item.id] ?? 1}
+                              onChange={(event) => handleQuantityInput(item.id, event.target.value)}
+                              style={{ width: "100%" }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={() => handleAddToCart(item)}
+                            disabled={addingToCart[item.id]}
+                          >
+                            {addingToCart[item.id] ? "Añadiendo..." : "Añadir al carrito"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {!user && (
+                <p>
+                  <Link to="/login">Inicia sesión</Link> para añadir items al carrito.
+                </p>
+              )}
+            </>
           )}
         </section>
       )}

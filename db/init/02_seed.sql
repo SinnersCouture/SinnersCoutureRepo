@@ -1,6 +1,11 @@
 -- Seed data for Sinners Couture shop (minimal)
 -- Assumes fresh database from 01_tablas.sql
 
+-- Configurar charset UTF-8 para la sesión
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+SET character_set_connection = utf8mb4;
+
 -- Tallas
 INSERT INTO tallas (nombre) VALUES
   ('XS'),
